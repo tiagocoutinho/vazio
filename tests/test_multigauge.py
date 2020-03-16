@@ -1,6 +1,6 @@
 import pytest
 
-from multigauge import (
+from vacuum.protocol.multigauge import (
     HEADER_REQ, HEADER_REP, Command, Channel, Packet,
     encode, encode_packet, decode, decode_packet)
 

@@ -14,8 +14,6 @@ Controller to Host reply format:
 [header response(1)] [channel(1)] [command(2)] [data] [terminator(1)]
 """
 
-__version__ = "0.0.1"
-
 import enum
 import collections
 

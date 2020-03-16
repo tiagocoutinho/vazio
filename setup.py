@@ -12,7 +12,7 @@ from setuptools import setup, find_packages
 
 
 def get_readme(name='README.md'):
-    """Get readme file contents without the badges."""
+    """Get readme file contents"""
     with open(name) as f:
         return f.read()
 
@@ -56,15 +56,15 @@ setup(
     long_description=readme,
     long_description_content_type='text/markdown',
     include_package_data=True,
-    keywords='vacuum,multigauge',
-    name='multigauge',
+    keywords='vacuum,multigauge,variandual',
+    name='vacuum',
     packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
     extras_require=extras_requirements,
     python_requires='>=3.5',
-    url='https://gitlab.com/tiagocoutinho/multigauge',
+    url='https://gitlab.com/tiagocoutinho/vacuum',
     version='0.0.1',
     zip_safe=True,
 )
