@@ -1,8 +1,6 @@
 """
 MultiGauge protocol
 
-MultiGauge Compatible Protocol
-
 header command = '#'
 header response = '>'
 terminator = '\r'
@@ -15,11 +13,11 @@ Controller to Host reply format:
 """
 
 import enum
-import collections
 
 
 HEADER_REQ = "#"
 HEADER_REP = ">"
+ACK = '\x06'
 
 
 class Enum(enum.Enum):
@@ -51,7 +49,7 @@ class Command(Enum):
     HighVoltage = "30"
     Unit = "03"
     MicroControllerFirmwareVersion = "05"
-    DspFirmwareVersion = "04"
+    DSPFirmwareVersion = "04"
     DeviceNumber = "01"
     DeviceType = "11"
     Voltage = "07"
@@ -75,6 +73,14 @@ def encode(header, channel, command, data):
     return '{}{}{}{}\r'.format(header, channel, command, data).encode()
 
 
+def encode_request(channel, command, data):
+    return encode(HEADER_REQ, channel, command, data)
+
+
+def encode_reply(channel, command, data):
+    return encode(HEADER_REP, channel, command, data)
+
+
 def decode(data):
     data = data.decode()
     assert data[-1] == '\r'
@@ -86,26 +92,7 @@ def decode(data):
     )
 
 
-Packet = collections.namedtuple('Packet', 'header, channel, command, data')
-
-
-def encode_packet(packet):
-    return encode(*packet)
-
-
-def decode_packet(data):
-    return Packet(*decode(data))
-
-
-Packet.encode = encode_packet
-
-
-Packet.decode = staticmethod(decode_packet)
-
-
-def Request(channel, command, data):
-    return Packet(HEADER_REQ, channel, command, data)
-
-
-def Reply(channel, command, data):
-    return Packet(HEADER_REP, channel, command, data)
+def decode_reply(data):
+    result = decode(data)
+    assert result[0] == HEADER_REP
+    return result
