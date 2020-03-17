@@ -4,17 +4,25 @@ import functools
 from vacuum.protocol.multigauge import encode_request, decode_reply, Command, Channel
 
 
-class Remote(enum.Enum):
-    Local = "0"
-    Remote = "1"
-    Serial = "2"
-
+class Enum(enum.Enum):
     @classmethod
     def encode(cls, value):
         return cls(value).value
 
 
-class HighVoltage(enum.Enum):
+class IntFlag(enum.IntFlag):
+    @classmethod
+    def decode(cls, data):
+        return cls(ord(data))
+
+
+class Remote(Enum):
+    Local = "0"
+    Remote = "1"
+    Serial = "2"
+
+
+class HighVoltage(Enum):
     Off = "0"
     OnStartStep = "1"
     On = "1"
@@ -28,22 +36,14 @@ class HighVoltage(enum.Enum):
     OffHVProtect = "-6"
     OffHVShortCircuit = "-5"
 
-    @classmethod
-    def encode(cls, value):
-        return cls(value).value
 
-
-class Unit(enum.Enum):
+class Unit(Enum):
     torr = "0"
     mbar = "1"
     pascal = "2"
 
-    @classmethod
-    def encode(cls, value):
-        return cls(value).value
 
-
-class HVDeviceNumber(enum.Enum):
+class HVDeviceNumber(Enum):
     Spare = "0"
     SCTr_500 = "1"
     SCTr_300 = "2"
@@ -57,15 +57,57 @@ class HVDeviceNumber(enum.Enum):
     DiodeND_20 = ":"
 
 
-class GaugeDeviceNumber(enum.Enum):
+class GaugeDeviceNumber(Enum):
     Convector = "0"
     MiniBA = "1"
     ColdCathode = "2"
 
 
-class SerialDeviceNumber(enum.Enum):
+class SerialDeviceNumber(Enum):
     RS232 = "0"
     RS485 = "1"
+
+
+class InterlockStatus(IntFlag):
+    FrontPanel = 2
+    HV1Remote = 4
+    HV1Cable = 8
+    HV2Remote = 64
+    HV2Cable = 128
+
+
+class FixedStep(Enum):
+    Fixed = "0"
+    Step = "1"
+
+
+class StartProtect(Enum):
+    Start = "0"
+    Protect = "1"
+
+
+class Polarity(Enum):
+    Negative = "0"
+    Positive = "1"
+
+
+class RemoteOutput(IntFlag):
+    HighVoltageEnable = 1
+    SetPoint2Active = 2
+    SetPoint1Active = 4
+    InterlockActive = 8
+    HighVoltageFault = 16
+    SerialMode = 32
+    ProtectMode = 64
+
+
+class RemoteInput(IntFlag):
+    StepMode = 4
+    RemoteMode = 8
+    ProtectMode = 16
+    HVOutputEnable = 32
+    HVConfirm = 64
+    RemoteInterlock = 128
 
 
 ProtocolErrors = {
@@ -125,34 +167,111 @@ ControllerErrors = {
 }
 
 
+def nop(v):
+    return v
+
+
 class Value:
-    def __init__(
-        self, command, channel=Channel.NoChannel, decode=lambda x: x, encode=lambda x: x
-    ):
+    def __init__(self, command, decode=nop, encode=None):
         self.command = command
-        self.channel = channel
         self.decode = decode
         self.encode = encode
-        self._request = encode_request(channel, command, "?")
 
-    def __get__(self, ctrl, owner=None):
-        reply = ctrl.conn.write_readline(self._request)
+    def _read(self, ctrl, channel):
+        request = encode_request(channel, self.command, "?")
+        reply = ctrl.conn.write_readline(request)
         *_, value = decode_reply(reply)
         return self.decode(value)
 
-    def __set__(self, ctrl, value):
+    def _write(self, ctrl, channel, value):
         if self.encode is None:
             raise AttributeError(
-                "can't set: {.name} on {.name}".format(self.command, self.channel)
+                "can't set: {.name} on {.name}".format(self.command, channel)
             )
-        request = encode_request(self.channel, self.command, self.encode(value))
+        request = encode_request(channel, self.command, self.encode(value))
         ctrl.conn.write_readline(request)
 
+    def __get__(self, ctrl, owner=None):
+        return self._read(ctrl, Channel.NoChannel)
 
-Int = functools.partial(Value, decode=int)
-IntRO = functools.partial(Int, encode=None)
-Float = functools.partial(Value, decode=float)
-FloatRO = functools.partial(Float, encode=None)
+    def __set__(self, ctrl, value):
+        self._write(ctrl, Channel.NoChannel, value)
+
+
+class ChannelValue(Value):
+    def __get__(self, channel, owner=None):
+        return self._read(channel.ctrl, channel.channel)
+
+    def __set__(self, channel, value):
+        self._write(channel.ctrl, channel.channel, value)
+
+
+class BaseChannel:
+
+    device_type = ChannelValue(Command.DeviceType)
+    error_status = ChannelValue(Command.ErrorStatus, decode=ControllerErrors.get)
+
+    def __init__(self, channel, ctrl=None):
+        self.channel = channel
+        self.ctrl = ctrl
+
+    def __get__(self, ctrl, owner=None):
+        ch = ctrl._channels.get(self.channel)
+        if ch is None:
+            ch = type(self)(self.channel, ctrl)
+            ctrl._channels[self.channel] = ch
+        return ch
+
+
+def EnumCV(cmd, enu, **kwargs):
+    kwargs.setdefault("decode", enu)
+    if hasattr(enu, "encode"):
+        kwargs.setdefault("encode", enu.encode)
+    return ChannelValue(cmd, **kwargs)
+
+
+IntCV = functools.partial(ChannelValue, encode=int, decode=str)
+IntCVRO = functools.partial(ChannelValue, decode=int)
+FloatCV = functools.partial(ChannelValue, decode=float, encode=str)
+FloatCVRO = functools.partial(ChannelValue, decode=float)
+
+
+class HV(BaseChannel):
+
+    high_voltage = EnumCV(Command.HighVoltage, HighVoltage)
+    device_number = EnumCV(Command.DeviceNumber, HVDeviceNumber)
+
+    voltage = IntCVRO(Command.Voltage)
+    current = FloatCVRO(Command.Current)
+    pressure = FloatCVRO(Command.Pressure)
+
+    fixed_step = EnumCV(Command.FixedStep, FixedStep)
+    start_protect = EnumCV(Command.StartProtect, StartProtect)
+    polarity = EnumCV(Command.Polarity, Polarity)
+
+    voltage_max = IntCV(Command.VoltageMax)  # [3000, 7000] step 100 (V)
+    current_max = IntCV(Command.CurrentMax)  # [100, 400] step 10 (mA)
+    power_max = IntCV(Command.PowerMax)  # [100, 400] step 10 (W)
+    current_protect = IntCV(Command.CurrentProtect)  # [10, 100] step 10 (mA)
+    voltage_step1 = IntCV(Command.VoltageStep1)  # [3000, 7000] step 100 (V)
+    current_step1 = FloatCV(Command.CurrentStep1)  # [1e-9, 1e1] (A)
+    voltage_step2 = IntCV(Command.VoltageStep2)  # [3000, 7000] step 100 (V)
+    current_step2 = FloatCV(Command.CurrentStep2)  # [1e-9, 1e1] (A)
+    set_point1 = FloatCV(Command.SetPoint1)  # [1e-9, 1e1] (torr) (> sp2)
+    set_point2 = FloatCV(Command.SetPoint2)  # [1e-9, 1e1] (torr)
+    remote_output = ChannelValue(Command.RemoteOutput, decode=RemoteOutput.decode)
+    remote_input = ChannelValue(Command.RemoteInput, decode=RemoteInput.decode)
+
+
+class Gauge(BaseChannel):
+
+    device_number = ChannelValue(Command.DeviceNumber, decode=GaugeDeviceNumber)
+    pressure = ChannelValue(Command.Pressure, decode=float)
+
+
+class Serial(BaseChannel):
+
+    device_number = ChannelValue(Command.DeviceNumber, decode=SerialDeviceNumber)
 
 
 class VarianDual:
@@ -164,61 +283,30 @@ class VarianDual:
     """
 
     remote = Value(Command.Remote, decode=Remote, encode=Remote.encode)
-
-    hv1 = Value(
-        Command.HighVoltage,
-        Channel.HighVoltage1,
-        decode=HighVoltage,
-        encode=HighVoltage.encode,
-    )
-    hv2 = Value(
-        Command.HighVoltage,
-        Channel.HighVoltage2,
-        decode=HighVoltage,
-        encode=HighVoltage.encode,
-    )
-
     unit = Value(Command.Unit, decode=Unit, encode=Unit.encode)
 
-    ctrl_firmware_version = Value(
-        Command.MicroControllerFirmwareVersion, Channel.NoChannel, encode=None
-    )
-    dsp_firmware_version = Value(
-        Command.DSPFirmwareVersion, Channel.NoChannel, encode=None
-    )
+    error_status = Value(Command.ErrorStatus, decode=ControllerErrors.get)
+    interlock_status = Value(Command.InterlockStatus, decode=InterlockStatus.decode)
+    ctrl_firmware_version = Value(Command.MicroControllerFirmwareVersion)
+    dsp_firmware_version = Value(Command.DSPFirmwareVersion)
 
-    hv1_device_number = Value(
-        Command.DeviceNumber, Channel.HighVoltage1, encode=HVDeviceNumber
-    )
-    hv2_device_number = Value(
-        Command.DeviceNumber, Channel.HighVoltage2, encode=HVDeviceNumber
-    )
-    gauge1_device_number = Value(
-        Command.DeviceNumber, Channel.Gauge1, encode=GaugeDeviceNumber
-    )
-    gauge2_device_number = Value(
-        Command.DeviceNumber, Channel.Gauge2, encode=GaugeDeviceNumber
-    )
-    serial_device_number = Value(
-        Command.DeviceNumber, Channel.Serial, encode=SerialDeviceNumber
-    )
+    hv1 = HV(Channel.HighVoltage1)
+    hv2 = HV(Channel.HighVoltage2)
+    gauge1 = Gauge(Channel.Gauge1)
+    gauge2 = Gauge(Channel.Gauge2)
+    serial = Serial(Channel.Serial)
 
-    hv1_device_type = Value(Command.DeviceNumber, Channel.HighVoltage1)
-    hv2_device_type = Value(Command.DeviceNumber, Channel.HighVoltage2)
-    gauge1_device_type = Value(Command.DeviceNumber, Channel.Gauge1)
-    gauge2_device_type = Value(Command.DeviceNumber, Channel.Gauge2)
-    serial_device_type = Value(Command.DeviceNumber, Channel.Serial)
-
-    hv1_current = FloatRO(Command.Current, Channel.HighVoltage1)
-    hv2_current = FloatRO(Command.Current, Channel.HighVoltage2)
-
-    hv1_voltage = IntRO(Command.Voltage, Channel.HighVoltage1)
-    hv2_voltage = IntRO(Command.Voltage, Channel.HighVoltage2)
-
-    hv1_pressure = FloatRO(Command.Pressure, Channel.HighVoltage1)
-    hv2_pressure = FloatRO(Command.Pressure, Channel.HighVoltage2)
-
-    hv1_error_status = Value(Command.ErrorStatus, Channel.HighVoltage1)
+    serial_config = Value(
+        Command.SerialConfig,
+        decode=lambda v: v == "1",
+        encode=lambda v: "1" if v else "0",
+    )
 
     def __init__(self, conn):
         self.conn = conn
+        self._channels = {}
+
+        # TODO:
+        # on connect:
+        # - set ACK reply mode
+        # - set unit to mbar

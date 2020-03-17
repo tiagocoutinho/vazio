@@ -59,6 +59,22 @@ class Command(Enum):
     SerialReset = "06"
     RemoteError = "12"
     InterlockStatus = "13"
+    FixedStep = "60"
+    StartProtect = "61"
+    Polarity = "62"
+    VoltageMax = "63"
+    CurrentMax = "64"
+    PowerMax = "65"
+    CurrentProtect = "66"
+    VoltageStep1 = "67"
+    CurrentStep1 = "68"
+    VoltageStep2 = "69"
+    CurrentStep2 = "70"
+    SetPoint1 = "71"
+    SetPoint2 = "72"
+    RemoteOutput = "73"
+    RemoteInput = "74"
+    SerialConfig = "80"
 
     @staticmethod
     def _size():
