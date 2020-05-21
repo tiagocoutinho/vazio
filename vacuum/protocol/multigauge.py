@@ -53,8 +53,8 @@ class Command(Enum):
     DeviceNumber = "01"
     DeviceType = "11"
     Voltage = "07"
-    Current = "8"
-    Pressure = "2"
+    Current = "08"
+    Pressure = "02"
     ErrorStatus = "19"
     SerialReset = "06"
     RemoteError = "12"
@@ -86,6 +86,8 @@ def encode(header, channel, command, data):
     command = Command.decode(command).value
     if isinstance(data, bytes):
         data = data.decode()
+    if isinstance(data, enum.Enum):
+        data = data.value
     return '{}{}{}{}\r'.format(header, channel, command, data).encode()
 
 
