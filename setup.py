@@ -59,7 +59,7 @@ setup(
     long_description_content_type='text/markdown',
     include_package_data=True,
     keywords='vacuum,multigauge,variandual',
-    name='vacuum',
+    name='vazio',
     packages=find_packages(),
     setup_requires=setup_requirements,
     test_suite='tests',
