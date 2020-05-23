@@ -67,6 +67,6 @@ setup(
     extras_require=extras_requirements,
     python_requires='>=3.5',
     url='https://gitlab.com/tiagocoutinho/vacuum',
-    version='0.0.1',
+    version="0.0.1",
     zip_safe=True,
 )
