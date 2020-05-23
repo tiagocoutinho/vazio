@@ -23,7 +23,9 @@ readme = get_readme()
 requirements = []
 
 
-extras_requirements = {}
+extras_requirements = {
+    "simulator": ["sinstruments"],
+}
 
 
 test_requirements = ['pytest', 'pytest-cov']
