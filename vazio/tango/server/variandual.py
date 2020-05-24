@@ -1,7 +1,7 @@
 import serial
 from tango.server import Device, attribute, command, device_property
 
-from vacuum.variandual import VarianDual as _VarianDual
+from vazio.variandual import VarianDual as _VarianDual
 
 
 def serial_for_url(url, *args, **kwargs):

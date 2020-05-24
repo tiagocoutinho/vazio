@@ -1,6 +1,6 @@
 import pytest
 
-from vacuum.protocol.multigauge import (
+from vazio.protocol.multigauge import (
     HEADER_REQ,
     HEADER_REP,
     Command,

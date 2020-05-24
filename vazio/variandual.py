@@ -1,7 +1,7 @@
 import enum
 import functools
 
-from vacuum.protocol.multigauge import encode_request, decode_reply, Command, Channel
+from vazio.protocol.multigauge import encode_request, decode_reply, Command, Channel
 
 
 class Enum(enum.Enum):

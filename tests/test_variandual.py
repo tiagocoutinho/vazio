@@ -1,7 +1,7 @@
 import pytest
 
-from vacuum.protocol.multigauge import HEADER_REQ, ACK, Command, Channel, encode_reply
-from vacuum.variandual import (
+from vazio.protocol.multigauge import HEADER_REQ, ACK, Command, Channel, encode_reply
+from vazio.variandual import (
     VarianDual,
     Remote,
     HighVoltage,
