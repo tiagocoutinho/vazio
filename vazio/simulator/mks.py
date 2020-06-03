@@ -7,7 +7,7 @@ a starting point:
 .. code-block:: yaml
 
     devices:
-    - class: MKS
+    - class: MKS937
       package: vazio.simulator.mks
       transports:
       - type: serial
@@ -61,7 +61,7 @@ state = {
 }
 
 
-class MKS(BaseDevice):
+class MKS937(BaseDevice):
 
     DEFAULT_NEWLINE = b"\r"
 
