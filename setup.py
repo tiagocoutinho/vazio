@@ -24,7 +24,7 @@ requirements = []
 
 
 extras_requirements = {
-    "simulator": ["sinstruments"],
+    "simulator": ["sinstruments>=1"],
 }
 
 

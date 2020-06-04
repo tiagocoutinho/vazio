@@ -63,14 +63,15 @@ state = {
 
 class MKS937(BaseDevice):
 
-    DEFAULT_NEWLINE = b"\r"
+    newline = b"\r"
+    baudrate = 19200   # should accept 19200 or lower
 
-    def handle_line(self, line):
-        self._log.info("processing line %r", line)
+    def handle_message(self, line):
+        self._log.info("processing message %r", line)
         line = line.decode()
         data = state[line]
         if callable(data):
             data = data()
-        reply = data.encode() + b'\r'
+        reply = data.encode() + self.newline
         self._log.debug("reply %r", reply)
         return reply

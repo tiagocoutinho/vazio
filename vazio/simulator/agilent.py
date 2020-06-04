@@ -19,7 +19,7 @@ import random
 import operator
 import functools
 
-from sinstruments.simulator import BaseDevice, MessageHandler
+from sinstruments.simulator import BaseDevice, MessageProtocol
 
 
 def funiform(a, b):
@@ -118,8 +118,7 @@ class Window(enum.Enum):
     P4 = b"842"
 
 
-def crc(msg):
-    return functools.reduce(operator.xor, msg)
+crc = functools.partial(functools.reduce, operator.xor)
 
 
 def crc_ascii(msg):
@@ -146,28 +145,29 @@ def encode_answer(wnd, data=ACK, addr=0):
     return msg
 
 
-class Protocol(MessageHandler):
-
-    def char_stream(self):
+def read_messages(channel):
+    def stream():
         while True:
-            c = self.fobj.read(1)
-            if not c:
-                break
-            yield c
+            yield channel.read1()
+
+    buff = b""
+    for data in stream():
+        buff += data
+        messages = buff.split(STX)
+        for msg in messages[1:-1]:
+            yield STX + msg
+        last = STX + messages[-1]
+        if len(last) > 2 and last[-3:-2] == ETX:
+            buff = b""
+            yield last
+        else:
+            buff = last
+
+
+class WindowProtocol(MessageProtocol):
 
     def read_messages(self):
-        buff = b""
-        stream = self.char_stream()
-        for char in stream:
-            # ignore messages until we receive STX
-            if not buff and char != STX:
-                continue
-            buff += char
-            if char == ETX:
-                # read CRC and yield
-                buff += next(stream) + next(stream)
-                yield buff
-                buff = b""
+        return read_messages(self.channel)
 
 
 state = {
@@ -191,10 +191,11 @@ state = {
 
 class Agilent4UHV(BaseDevice):
 
-    message_handler = Protocol
+    protocol = WindowProtocol
+    baudrate = 9600   # should accept 9600 or lower
 
-    def handle_line(self, line):
-        self._log.info("processing line %r", line)
+    def handle_message(self, line):
+        self._log.info("processing message %r", line)
         addr, wnd, cmd, data = decode_message(line)
         if cmd == Command.READ:
             data = state[wnd]

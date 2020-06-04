@@ -108,10 +108,11 @@ state = {
 
 class VarianDual(BaseDevice):
 
-    DEFAULT_NEWLINE = b"\r"
+    newline = b"\r"
+    baudrate = 9600      # should accept 9600 or lower
 
-    def handle_line(self, line):
-        self._log.debug("processing line %r", line)
+    def handle_message(self, line):
+        self._log.debug("processing message %r", line)
         line = line.decode()
         assert line.startswith(HEADER_REQ)
         channel, command = Channel(line[1]), Command(line[2:4])
