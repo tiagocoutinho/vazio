@@ -24,7 +24,7 @@ requirements = []
 
 
 extras_requirements = {
-    "simulator": ["sinstruments>=1"],
+    "simulator": ["sinstruments>=1.3"],
 }
 
 
@@ -52,6 +52,13 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
+    entry_points={
+        'sinstruments.device': [
+            'MKS937 = vazio.simulator.mks:MKS937 [simulator]',
+            'Agilent4UHV = vazio.simulator.agilent:Agilent4UHV [simulator]',
+            'VarianDual = vazio.simulator.variandual:VarianDual [simulator]'
+        ]
+    },
     description="multigauge protocol",
     install_requires=requirements,
     license="MIT license",

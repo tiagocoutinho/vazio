@@ -8,7 +8,7 @@ a starting point:
 
     devices:
     - class: Agilent4UHV
-      package: vazio.simulator.agilent
+      name: agilent-1
       transports:
       - type: serial
         url: /tmp/agilent4uhv00

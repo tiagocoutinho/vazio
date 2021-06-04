@@ -8,7 +8,7 @@ a starting point:
 
     devices:
     - class: VarianDual
-      package: vazio.simulator.variandual
+      name: variandual-1
       transports:
       - type: serial
         url: /tmp/variandual1

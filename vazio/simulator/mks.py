@@ -8,7 +8,7 @@ a starting point:
 
     devices:
     - class: MKS937
-      package: vazio.simulator.mks
+      name: mks-1
       transports:
       - type: serial
         url: /tmp/mks00
